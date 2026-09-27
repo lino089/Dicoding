@@ -70,6 +70,11 @@ function render(query = "") {
     date.setAttribute("data-testid", "transactionItemDate");
     date.innerText = transaction.date;
 
+    const type = document.createElement("p");
+    type.classList.add("tracker-transaction-item__type");
+    type.setAttribute('data-testid', 'transactionItemType');
+    type.innerText = transaction.type === 'income' ? 'Pemasukan' : 'Pengeluaran';
+
     const deleteButton = document.createElement("button");
     deleteButton.setAttribute("data-testid", "transactionItemDeleteButton");
     deleteButton.innerText = "Hapus";
@@ -110,7 +115,7 @@ function render(query = "") {
       document.querySelector(".tracker-form__submit").innerText = 'Simpan Perubahan';
     });
 
-    card.append(title, amount, date, deleteButton, toggleButton, editButtton);
+    card.append(title, amount, date, type, deleteButton, toggleButton, editButtton);
 
     if (transaction.type === "income") {
       incomeList.append(card);
