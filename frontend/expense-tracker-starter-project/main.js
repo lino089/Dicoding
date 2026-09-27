@@ -5,10 +5,25 @@
  * Tulis seluruh kode JavaScript kamu di sini.
  */
 
+document.addEventListener("DOMContentLoaded", () => {
+  if (isStorageExist()) {
+    loadDataFromStorage();
+  }
+});
+
+function isStorageExist() {
+  if (typeof Storage === "undefined") {
+    alert("Browser Kamu tidak mendukung local storage");
+    return false;
+  }
+  return true;
+}
+
 // TODO [Basic] Buat variabel array untuk menyimpan semua data transaksi, contoh: let transactions = []
 // TODO [Basic] Buat fungsi untuk menghasilkan ID unik secara otomatis, contoh: gunakan +new Date()
 let transactions = [];
 const generateId = () => +new Date();
+let editingTransactionId = null;
 
 /**
  * ========================================================
@@ -27,10 +42,15 @@ const expenseList = document.getElementById("expenseList");
  *  - Pastikan setiap elemen memiliki atribut data-testid yang sesuai (lihat panduan di rubrik)
  *  - Masukkan kartu ke kontainer yang tepat: income → incomeList, expense → expenseList
  */
-function render() {
+function render(query = "") {
   incomeList.innerText = "";
   expenseList.innerText = "";
-  for (let transaction of transactions) {
+
+  const filteredTransactions = transactions.filter((item) =>
+    item.title.toLowerCase().includes(query.toLowerCase()),
+  );
+
+  for (let transaction of filteredTransactions) {
     const card = document.createElement("div");
     card.classList.add("tracker-transaction-item");
     card.setAttribute("data-testid", "transactionItem");
@@ -50,7 +70,47 @@ function render() {
     date.setAttribute("data-testid", "transactionItemDate");
     date.innerText = transaction.date;
 
-    card.append(title, amount, date);
+    const deleteButton = document.createElement("button");
+    deleteButton.setAttribute("data-testid", "transactionItemDeleteButton");
+    deleteButton.innerText = "Hapus";
+    deleteButton.addEventListener("click", () => {
+      transactions = transactions.filter((item) => item.id !== transaction.id);
+      saveData();
+      render();
+      updateDashboard();
+    });
+
+    const toggleButton = document.createElement("button");
+    toggleButton.innerText = "Ubah";
+    toggleButton.setAttribute("data-testid", "transactionItemEditTypeButton");
+    toggleButton.addEventListener("click", () => {
+      transaction.type = transaction.type === "income" ? "expense" : "income";
+
+      saveData();
+      render();
+      updateDashboard();
+    });
+
+    const editButtton = document.createElement("button");
+    editButtton.innerText = "Edit";
+    editButtton.setAttribute("data-testid", "transactionItemEditButton");
+
+    editButtton.addEventListener("click", () => {
+      document.getElementById("transactionFormTitleInput").value =
+        transaction.title;
+      document.getElementById("transactionFormAmountInput").value =
+        transaction.amount;
+      document.getElementById("transactionFormDateInput").value =
+        transaction.date;
+      document.getElementById("transactionFormTypeSelect").value =
+        transaction.type;
+
+      editingTransactionId = transaction.id;
+
+      document.querySelector(".tracker-form__submit").innerText = 'Simpan Perubahan';
+    });
+
+    card.append(title, amount, date, deleteButton, toggleButton, editButtton);
 
     if (transaction.type === "income") {
       incomeList.append(card);
@@ -88,17 +148,34 @@ form.addEventListener("submit", (e) => {
     alert("Minimal nominal transaksi adalah 1");
     return;
   }
-  transactions.push({
-    id: generateId(),
-    title: transactionFormTitleInput,
-    amount: Number(transactionFormAmountInput),
-    date: transactionFormDateInput,
-    type: transactionFormTypeSelect,
-  });
 
-  render();
+  if (editingTransactionId !== null) {
+    const targetIndex = transactions.findIndex(
+      (t) => t.id === editingTransactionId,
+    );
 
-  updateDashboard();
+    if (targetIndex !== -1) {
+      transactions[targetIndex] = {
+        id: editingTransactionId,
+        title: transactionFormTitleInput,
+        amount: transactionFormAmountInput,
+        date: transactionFormDateInput,
+        type: transactionFormTypeSelect,
+      };
+    }
+    editingTransactionId = null;
+    document.querySelector(".tracker-form__submit").innerText = "Simpan";
+  } else {
+    transactions.push({
+      id: generateId(),
+      title: transactionFormTitleInput,
+      amount: Number(transactionFormAmountInput),
+      date: transactionFormDateInput,
+      type: transactionFormTypeSelect,
+    });
+  }
+
+  document.dispatchEvent(new Event("transaction:updated"));
 
   form.reset();
 });
@@ -121,19 +198,23 @@ function updateDashboard() {
   let totalIncome = 0;
   let totalExpense = 0;
 
-  for(let transaction of transactions) {
-    if (transaction.type === 'income'){
+  for (let transaction of transactions) {
+    if (transaction.type === "income") {
       totalIncome += Number(transaction.amount);
-    } else if (transaction.type === 'expense'){
+    } else if (transaction.type === "expense") {
       totalExpense += Number(transaction.amount);
     }
   }
 
   const balance = totalIncome - totalExpense;
 
-  const saldo = document.querySelector('.tracker-summary__balance-amount');
-  const pemasukan = document.querySelector('.tracker-summary__stat-amount--income');
-  const pengeluaran = document.querySelector('.tracker-summary__stat-amount--expense');
+  const saldo = document.querySelector(".tracker-summary__balance-amount");
+  const pemasukan = document.querySelector(
+    ".tracker-summary__stat-amount--income",
+  );
+  const pengeluaran = document.querySelector(
+    ".tracker-summary__stat-amount--expense",
+  );
 
   saldo.innerText = `Rp${balance.toLocaleString("id-ID")}`;
   pemasukan.innerText = `Rp${totalIncome.toLocaleString("id-ID")}`;
@@ -150,6 +231,20 @@ function updateDashboard() {
  * Data transaksi disimpan ke localStorage menggunakan JSON.stringify(), dan dimuat kembali saat halaman dibuka menggunakan JSON.parse().
  *  - Tombol "Hapus" berfungsi: transaksi yang dihapus langsung hilang dari layar dan dari localStorage.
  */
+const STORAGE_KEY = "EXPENSE_TRACKER_APPS";
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+}
+
+function loadDataFromStorage() {
+  const serializedData = localStorage.getItem(STORAGE_KEY);
+
+  if (serializedData !== null) {
+    transactions = JSON.parse(serializedData);
+  }
+
+  document.dispatchEvent(new Event("transaction:updated"));
+}
 
 /**
  * TODO [Skilled]:
@@ -183,9 +278,27 @@ function updateDashboard() {
  *  - Filter array transaksi berdasarkan kecocokan kata kunci dengan judul transaksi
  *  - Tampilkan hanya transaksi yang judulnya mengandung kata kunci tersebut
  */
+const searchInput = document.getElementById("searchTransactionFormTitleInput");
+
+searchInput.addEventListener("input", (e) => {
+  const keyword = e.target.value;
+  render(keyword);
+});
 
 /**
  * TODO [Advanced]:
  * Pastikan fitur pencarian berjalan dengan baik di semua kondisi:
  *  - Saat kolom pencarian dikosongkan, tampilkan kembali seluruh daftar transaksi
  */
+const searchForm = document.getElementById("searchTransactionForm");
+
+searchForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+});
+
+document.addEventListener("transaction:updated", () => {
+  saveData();
+  render();
+  updateDashboard();
+});
+loadDataFromStorage();
