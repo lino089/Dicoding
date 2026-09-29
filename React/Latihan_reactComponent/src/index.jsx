@@ -74,38 +74,18 @@ function News({title, image, category, content, date, link}) {
       link: '#'
     }
   ];
- 
+
   // TODO: selesaikan component-nya
   return <div>
     <div>
       <Header title="Latest News" subtitle="Covering March & April 2022" />
-      <Card 
-        title={someNews[0].title}
-        date={someNews[0].date}
-        content={someNews[0].content}
-        image={someNews[0].image}
-        category={someNews[0].category}
-        link={someNews[0].link}
-      />
-      <Card 
-        title={someNews[1].title}
-        date={someNews[1].date}
-        content={someNews[1].content}
-        image={someNews[1].image}
-        category={someNews[1].category}
-        link={someNews[1].link}
-      />
-      <Card 
-        title={someNews[2].title}
-        date={someNews[2].date}
-        content={someNews[2].content}
-        image={someNews[2].image}
-        category={someNews[2].category}
-        link={someNews[2].link}
-      />
+      {someNews.map((news => (
+        <Card {...news} key={news.title}/>
+      )))}
+      <Card />
     </div>
   </div>;
 }
- 
+
 const root = createRoot(document.getElementById('root'));
 root.render(<News/>);
